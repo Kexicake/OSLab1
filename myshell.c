@@ -3,6 +3,20 @@
 #include <string.h> // strcspn, strtok, strcmp
 #include <unistd.h> // системные вызовы: getcwd,fork,execvp,chdir
 
+// Объявление переменных среды
+extern char **environ;
+
+// Функция для вывода приглашения
+void print_prompt() {
+    char cwd[1024];
+    // Получаем текущий рабочий каталог и выводим его как приглашение
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        printf("%s> ", cwd);
+    } else {
+        perror("getcwd() error"); // Обрабатываем ошибку, если не удалось получить текущий каталог
+    }
+}
+
 // Функция для обработки команды help
 void execute_help() {
     printf("myshell - Простая реализация оболочки.\n");
@@ -17,6 +31,11 @@ void execute_help() {
     printf("quit - Выйти из оболочки.\n");
 }
 
+// Функция для обработки команды clr
+void execute_clr() {
+    // Очищаем экран
+    printf("\033[H\033[J");
+}
 int main(int argc, char *argv[]){
 
     // Установить переменную среды shell
