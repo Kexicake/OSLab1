@@ -37,7 +37,11 @@ void execute_clr() {
     printf("\033[H\033[J");
 }
 int main(int argc, char *argv[]){
-
+    
     // Установить переменную среды shell
     setenv("shell", argv[0], 1);
+
+    while (1) {
+        print_prompt(); // Выводим приглашение
+    }
 }
