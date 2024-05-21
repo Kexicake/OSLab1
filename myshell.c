@@ -37,11 +37,28 @@ void execute_clr() {
     printf("\033[H\033[J");
 }
 int main(int argc, char *argv[]){
-    
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    char *args[100];
     // Установить переменную среды shell
     setenv("shell", argv[0], 1);
 
     while (1) {
         print_prompt(); // Выводим приглашение
+
+        read = getline(&line, &len, stdin); // Считываем строку ввода
+        if (read == -1) {
+            break;
+        }
+        // Убираем символ новой строки
+        line[strcspn(line, "\n")] = 0;
+
+        // Разделяем строку на аргументы
+        int i = 0;
+        args[i] = strtok(line, " ");
+        while (args[i] != NULL) {
+            args[++i] = strtok(NULL, " ");
+        }
     }
 }
