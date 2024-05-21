@@ -2,6 +2,14 @@
 #include <stdlib.h> // waitpid
 #include <string.h> // strcspn, strtok, strcmp
 #include <unistd.h> // системные вызовы: getcwd,fork,execvp,chdir
+#include <unistd.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <errno.h>
+#include "myshell.h"
 
 // Объявление переменных среды
 extern char **environ;
@@ -15,6 +23,68 @@ void print_prompt() {
     } else {
         perror("getcwd() error"); // Обрабатываем ошибку, если не удалось получить текущий каталог
     }
+}
+
+// Функция для обработки команды cd
+void execute_cd(char *args[]) {
+    if (args[1] == NULL) {
+        // Если не указан каталог, выводим текущий каталог
+        printf("%s\n", getenv("PWD"));
+    } else if (chdir(args[1]) != 0) {
+        // Меняем текущий каталог и обрабатываем возможную ошибку
+        perror("myshell");
+    } else {
+        // Устанавливаем переменную среды PWD на новый каталог
+        setenv("PWD", args[1], 1);
+    }
+}
+// Функция для обработки команды dir
+void execute_dir(char *args[]) {
+    DIR *dir;
+    struct dirent *entry;
+    if (args[1] == NULL) {
+        // Если не указан каталог, используем текущий каталог
+        args[1] = ".";
+    }
+    if ((dir = opendir(args[1])) != NULL) {
+        // Считываем и выводим содержимое каталога
+        while ((entry = readdir(dir)) != NULL) {
+            printf("%s\n", entry->d_name);
+        }
+        closedir(dir);
+    } else {
+        // Обрабатываем ошибку открытия каталога
+        perror("myshell");
+    }
+}
+
+// Функция для обработки команды environ
+void execute_environ() {
+    // Выводим все переменные среды
+    for (char **env = environ; *env != 0; env++) {
+        char *thisEnv = *env;
+        printf("%s\n", thisEnv);
+    }
+}
+// Функция для обработки команды pause
+void execute_pause() {
+    // Приостанавливаем работу оболочки до нажатия Enter
+    printf("Press Enter to continue...\n");
+    while (getchar() != '\n');
+}
+
+// Функция для обработки команды quit
+void execute_quit() {
+    // Завершаем работу оболочки
+    exit(0);
+}
+// Функция для обработки команды echo
+void execute_echo(char *args[]) {
+    // Выводим переданный комментарий
+    for (int i = 1; args[i] != NULL; i++) {
+        printf("%s ", args[i]);
+    }
+    printf("\n");
 }
 
 // Функция для обработки команды help
@@ -36,6 +106,24 @@ void execute_clr() {
     // Очищаем экран
     printf("\033[H\033[J");
 }
+
+// Функция для выполнения внешней команды
+void execute_external_command(char *args[]) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        // В дочернем процессе выполняем команду
+        execvp(args[0], args);
+        perror("myshell"); // Обрабатываем ошибку execvp
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        // Обрабатываем ошибку fork
+        perror("myshell");
+    } else {
+        // В родительском процессе ждем завершения дочернего процесса
+        wait(NULL);
+    }
+}
+
 int main(int argc, char *argv[]){
     char *line = NULL;
     size_t len = 0;
@@ -59,6 +147,27 @@ int main(int argc, char *argv[]){
         args[i] = strtok(line, " ");
         while (args[i] != NULL) {
             args[++i] = strtok(NULL, " ");
+            if (args[0] == NULL) {
+            continue; // Если команда пустая, продолжаем цикл
+            } else if (strcmp(args[0], "cd") == 0) {
+                execute_cd(args); // Выполняем команду cd
+            } else if (strcmp(args[0], "clr") == 0) {
+                execute_clr(); // Выполняем команду clr
+            } else if (strcmp(args[0], "dir") == 0) {
+                execute_dir(args); // Выполняем команду dir
+            } else if (strcmp(args[0], "environ") == 0) {
+                execute_environ(); // Выполняем команду environ
+            } else if (strcmp(args[0], "echo") == 0) {
+                execute_echo(args); // Выполняем команду echo
+            } else if (strcmp(args[0], "help") == 0) {
+                execute_help(); // Выполняем команду help
+            } else if (strcmp(args[0], "pause") == 0) {
+                execute_pause(); // Выполняем команду pause
+            } else if (strcmp(args[0], "quit") == 0) {
+                execute_quit(); // Выполняем команду quit
+            } else {
+                execute_external_command(args); // Выполняем внешнюю команду
+            }
         }
     }
 }
